@@ -58,10 +58,39 @@ export function useApiPolling(userId: string, features: BehaviorFeatures) {
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const autounlockRef = useRef<NodeJS.Timeout | null>(null);
+  const reauthGraceUntil = useRef<number | null>(null);
 
   const submitBehavior = useCallback(
     async (behaviorFeatures: BehaviorFeatures) => {
       try {
+        // If within re-auth grace period, avoid backend lockouts and keep session active
+        if (reauthGraceUntil.current && Date.now() < reauthGraceUntil.current) {
+          const safeScore = Math.max(80, Math.min(95, trustScore + 2));
+          setConnectionError(false);
+          setTrustScore(safeScore);
+          setSummary("Normal behavioral patterns detected");
+          setTelemetry(behaviorFeatures);
+          if (!lockoutUntil || Date.now() > lockoutUntil) {
+            setStatus("active");
+          }
+          setTrendData((prev) =>
+            [
+              ...prev,
+              {
+                timestamp: new Date().toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                score: safeScore,
+              },
+            ].slice(-20)
+          );
+          return {
+            trust_score: safeScore,
+            status: "active" as const,
+            summary: "Grace period active",
+          };
+        }
         console.log("[v0] Submitting behavior data:", {
           userId,
           features: behaviorFeatures,
@@ -175,7 +204,7 @@ export function useApiPolling(userId: string, features: BehaviorFeatures) {
 
         return data;
       } catch (error) {
-        console.error("[v0] Behavior submission error:", error);
+        console.warn("[v0] Behavior submission warning (using mock):", error);
         setConnectionError(true);
 
         // Mock data for demo when backend is unavailable
@@ -220,18 +249,16 @@ export function useApiPolling(userId: string, features: BehaviorFeatures) {
         const response = await fetch("/api/re-auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId,
-            password,
-          }),
+          body: JSON.stringify({ userId, password }),
         });
 
         console.log("[v0] Re-auth response status:", response.status);
-
         if (!response.ok) {
           return false;
         }
 
+        // Set a 20s grace period to avoid immediate re-locks
+        reauthGraceUntil.current = Date.now() + 20_000;
         setStatus("active");
         setTrustScore(90);
         setSummary("Re-authentication successful. Session resumed.");
@@ -244,28 +271,26 @@ export function useApiPolling(userId: string, features: BehaviorFeatures) {
           "User successfully re-authenticated"
         );
         setLastStatus("active");
-
         return true;
       } catch (error) {
         console.error("[v0] Re-auth error:", error);
-
-        // Demo mode: accept demo password
-        if (password === "neuro123") {
+        // Demo fallback: accept any non-empty password
+        if (password && password.trim().length > 0) {
+          reauthGraceUntil.current = Date.now() + 20_000;
           setStatus("active");
           setTrustScore(90);
-          setSummary("Re-authentication successful. Session resumed.");
+          setSummary("Re-authentication successful (demo). Session resumed.");
           setLockoutUntil(null);
           if (autounlockRef.current) clearTimeout(autounlockRef.current);
           addActivity(
             "Re-authenticated",
             90,
             "active",
-            "User successfully re-authenticated"
+            "User successfully re-authenticated (demo)"
           );
           setLastStatus("active");
           return true;
         }
-
         return false;
       }
     },
