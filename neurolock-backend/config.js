@@ -6,4 +6,5 @@ export const config = {
   mongoUri: process.env.MONGO_URI,
   jwtSecret: process.env.JWT_SECRET,
   port: process.env.PORT || 8080,
+  mlServiceUrl: process.env.ML_SERVICE_URL || "http://localhost:5000",
 };
