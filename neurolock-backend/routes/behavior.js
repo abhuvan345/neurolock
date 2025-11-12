@@ -69,7 +69,7 @@ router.post("/", authMiddleware, async (req, res) => {
 
       if (status !== "active") {
         await Anomaly.create({
-          sessionId: session._id,
+          sessionId: String(session._id),
           userId,
           summary: `System action: ${action} (Trust Score: ${trust_score})`,
         });
@@ -87,6 +87,39 @@ router.post("/", authMiddleware, async (req, res) => {
       error: "ML Service or server error",
       details: err.message,
     });
+  }
+});
+
+// Fetch recent activity logs for the current user
+router.get("/logs", authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const sessions = await Session.find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+
+    const activities = sessions.map((s) => {
+      const status = s.status || "active";
+      const desc =
+        status === "active"
+          ? "Normal behavioral patterns detected"
+          : status === "warning"
+          ? "Unusual behavior detected. Increased verification may be required."
+          : "Suspicious activity detected. Re-authentication required.";
+      return {
+        id: String(s._id),
+        timestamp: new Date(s.createdAt).toISOString(),
+        trustScore: s.trustScore,
+        status,
+        description: desc,
+      };
+    });
+
+    return res.json({ activities });
+  } catch (err) {
+    console.warn("⚠️ Failed to fetch logs (continuing):", err.message);
+    return res.json({ activities: [] });
   }
 });
 

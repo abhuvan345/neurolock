@@ -6,15 +6,20 @@ const MONGO_URI = config.mongoUri;
 
 export const connectDB = async () => {
   if (!MONGO_URI) {
-    console.error("❌ MONGO_URI not found in .env file");
-    process.exit(1);
+    console.warn(
+      "⚠️  MONGO_URI not found. Starting server without database connection."
+    );
+    return; // Allow app to run without DB (useful for demo/local)
   }
 
   try {
     await mongoose.connect(MONGO_URI);
     console.log("✅ MongoDB Atlas connected successfully");
   } catch (err) {
-    console.error("❌ MongoDB connection failed:", err.message);
-    process.exit(1);
+    console.warn(
+      "⚠️  MongoDB connection failed (continuing without DB):",
+      err.message
+    );
+    // Do not exit; API can still operate in degraded mode
   }
 };
