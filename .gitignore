@@ -1,0 +1,65 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+log.txt
+debug.log
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Build outputs
+dist/
+build/
+.cache/
+.tmp/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Database backups
+dump/
+*.sql
+*.sqlite
+*.db
+
+# Python integration (if ML client calls Python scripts)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+*.egg-info/
+
+# System files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Test artifacts
+test-output/
+jest-cache/
+jest-html-reporters-*
+
+# Local credentials or data
+*.pem
+*.crt
+*.key
+uploads/
+temp/
+data/
